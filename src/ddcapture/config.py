@@ -205,6 +205,9 @@ def carregar(
     config_dir = config_dir or (_raiz_projeto() / "config")
 
     settings = _ler_yaml(config_dir / "settings.yaml")
+    # settings.local.yaml e opcional e fica fora do versionamento: e onde vao
+    # os valores desta instalacao (dashboard_id, janela) sem virar commit.
+    settings = _mesclar(settings, _ler_yaml(config_dir / "settings.local.yaml", opcional=True))
     categorias = _ler_yaml(config_dir / "categorias.yaml")
 
     credenciais = None
@@ -233,8 +236,26 @@ def carregar(
     )
 
 
-def _ler_yaml(caminho: Path) -> dict[str, Any]:
+def _ler_yaml(caminho: Path, opcional: bool = False) -> dict[str, Any]:
     if not caminho.exists():
+        if opcional:
+            return {}
         raise ErroConfig(f"Arquivo de configuracao nao encontrado: {caminho}")
     with caminho.open(encoding="utf-8") as fh:
         return yaml.safe_load(fh) or {}
+
+
+def _mesclar(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
+    """Sobrepoe `override` em `base`, descendo nos dicionarios aninhados.
+
+    Raso demais quebraria `janela` e `sinks`: declarar so `janela.from` no
+    arquivo local apagaria o `to` do settings.yaml.
+    """
+    saida = dict(base)
+    for chave, valor in (override or {}).items():
+        atual = saida.get(chave)
+        if isinstance(atual, dict) and isinstance(valor, dict):
+            saida[chave] = _mesclar(atual, valor)
+        else:
+            saida[chave] = valor
+    return saida

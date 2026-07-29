@@ -1,4 +1,9 @@
 .env
+
+# Override local do settings.yaml: e onde vai o dashboard_id real, que nao
+# deve ir para um repositorio publico.
+config/settings.local.yaml
+
 __pycache__/
 *.py[cod]
 .pytest_cache/

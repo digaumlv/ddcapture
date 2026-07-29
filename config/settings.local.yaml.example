@@ -1,0 +1,27 @@
+# Override LOCAL do settings.yaml. Copie para settings.local.yaml e ajuste.
+#
+#     copy config\settings.local.yaml.example config\settings.local.yaml
+#
+# O settings.local.yaml e ignorado pelo git: e aqui que vao os valores da sua
+# instalacao (o ID do dashboard, a janela que voce usa), sem ir para o
+# repositorio. As chaves definidas aqui vencem as do settings.yaml; o que voce
+# nao declarar continua vindo de la.
+#
+# Com um dashboard_id definido, rodar sem argumentos ja executa a captura:
+#
+#     ddcapture.bat
+#
+# (Sem dashboard_id, rodar sem argumentos so mostra a ajuda.)
+
+# ID do dashboard, visivel na URL: /dashboard/abc-def-ghi/titulo
+dashboard_id: "abc-def-ghi"
+
+# Descomente para fixar tambem a janela padrao desta instalacao.
+# janela:
+#   from: "01/07"
+#   to: "31/07"
+
+# Descomente para trocar quais saidas sao gravadas.
+# sinks:
+#   xlsx: true
+#   csv: true

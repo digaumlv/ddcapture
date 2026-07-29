@@ -114,9 +114,8 @@ def _normalizar_argv(argv: list[str]) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    args = montar_parser().parse_args(
-        _normalizar_argv(list(sys.argv[1:] if argv is None else argv))
-    )
+    argv_bruto = list(sys.argv[1:] if argv is None else argv)
+    args = montar_parser().parse_args(_normalizar_argv(argv_bruto))
     logging.basicConfig(
         level=logging.INFO if args.verbose else logging.WARNING,
         format="%(message)s",
@@ -151,12 +150,20 @@ def main(argv: list[str] | None = None) -> int:
 
     dashboard_id = args.dashboard_id or config.dashboard_id
     if not offline and not dashboard_id:
+        # Sem argumentos E sem dashboard configurado: quem chegou aqui
+        # provavelmente deu duplo clique e nao sabe o que fazer. Ajuda, nao erro.
+        if not argv_bruto:
+            _imprimir_ajuda_curta()
+            return 0
         print(
             "Informe o dashboard com --dashboard-id ou preencha dashboard_id em "
-            "config/settings.yaml. Use --listar para descobrir o ID.",
+            "config/settings.local.yaml. Use --buscar TEXTO para descobrir o ID.",
             file=sys.stderr,
         )
         return 2
+
+    if not argv_bruto:
+        print(f"Usando o dashboard do settings: {dashboard_id}\n")
 
     try:
         if offline:
@@ -206,6 +213,41 @@ def main(argv: list[str] | None = None) -> int:
     _imprimir_resumo(resultado, escritos)
 
     return 1 if resultado.falhas and not resultado.capturados else 0
+
+
+def _imprimir_ajuda_curta() -> None:
+    """Mostrada quando nao ha argumentos nem dashboard configurado."""
+    print(
+        """
+  ddcapture - captura widgets e valores de dashboards do Datadog
+
+  Para rodar sem argumentos, defina o dashboard uma vez:
+
+      copy config\\settings.local.yaml.example config\\settings.local.yaml
+
+  e preencha o dashboard_id. Depois basta:
+
+      ddcapture.bat
+
+  Comandos:
+
+    ddcapture.bat --validar
+        Testa se as chaves do .env funcionam no site configurado.
+
+    ddcapture.bat --buscar TEXTO
+        Lista os dashboards com TEXTO no titulo, com o ID de cada um.
+
+    ddcapture.bat --dashboard-id ID --dry-run
+        Inventario de widgets e queries. NAO consulta dados nem grava
+        arquivos - use para conferir antes de gastar rate limit.
+
+    ddcapture.bat --dashboard-id ID --from 01/07 --to 31/07
+        Captura os valores e grava em out\\.
+
+  Janelas: -15m, -1h, -7d, 01/07, 01/07/2026, now ou epoch.
+  Lista completa de opcoes: ddcapture.bat --help
+"""
+    )
 
 
 def _formatar_janela(inicio_s: int, fim_s: int) -> str:

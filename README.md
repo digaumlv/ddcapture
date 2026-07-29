@@ -79,6 +79,36 @@ ddcapture.bat --dashboard-id abc-def-ghi --var env=prod --var service=checkout
 ddcapture.bat --arquivo dashboard.json --dry-run
 ```
 
+### Rodar sem argumentos
+
+Configure o dashboard uma vez e depois é só `ddcapture.bat` — ou duplo clique no arquivo.
+
+```bat
+copy config\settings.local.yaml.example config\settings.local.yaml
+```
+
+```yaml
+# config/settings.local.yaml
+dashboard_id: "abc-def-ghi"
+janela:
+  from: "01/07"
+  to: "31/07"
+```
+
+```
+> ddcapture.bat
+Usando o dashboard do settings: abc-def-ghi
+Janela: 01/07/2026 00:00:00  ate  31/07/2026 23:59:59   (31.0 dias)
+```
+
+O `settings.local.yaml` é **ignorado pelo git** — é onde ficam os valores da sua
+instalação sem virar commit. Ele sobrepõe o `settings.yaml`, e a mesclagem é profunda:
+declarar só `janela.from` não apaga o `to` que veio do arquivo versionado.
+
+Sem argumentos **e** sem `dashboard_id` configurado, o comando mostra a ajuda em vez de
+um erro — é o que acontece no duplo clique de quem ainda não configurou. Já com
+argumentos, a ausência de dashboard é erro: quem digitou um comando queria executar algo.
+
 ### Janela de tempo
 
 | Forma | Exemplos |
@@ -107,7 +137,7 @@ Janela: 01/07/2026 00:00:00  ate  31/07/2026 23:59:59   (31.0 dias)
 
 | Situação | Comportamento |
 |---|---|
-| **Sem argumentos** | Mostra os comandos mais usados e pausa — é o caso do duplo clique pelo Explorer, que senão fecharia a janela antes de dar para ler |
+| **Sem argumentos** | Roda o dashboard do `settings.local.yaml`, ou mostra a ajuda se não houver um configurado. Pausa no fim — é o caso do duplo clique pelo Explorer, que senão fecharia a janela antes de dar para ler |
 | **Com argumentos** | Repassa para `main.py` e **propaga o código de saída**, então serve para Agendador de Tarefas e scripts |
 | **`.venv` ou `.env` faltando** | Para com a instrução do que fazer, em vez de um traceback de import |
 | **Sempre** | Faz `cd` para a pasta do projeto e liga o codepage UTF-8 |
@@ -292,7 +322,7 @@ src/ddcapture/
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-133 testes, **sem rede**: achatamento de grupos aninhados, os dois formatos de query,
+143 testes, **sem rede**: achatamento de grupos aninhados, os dois formatos de query,
 `query_table`, substituição de template variables, as quatro camadas de categorização,
 a leitura das respostas de cada API, o guarda somente-leitura, as janelas de tempo e
 todos os formatos de saída — contra `tests/fixtures/dashboard_sample.json`.

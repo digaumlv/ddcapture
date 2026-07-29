@@ -29,10 +29,13 @@ if "%~1"=="" set "PAUSAR=1"
 
 if not exist "%PY%" goto :SEM_VENV
 if not exist "%~dp0.env" goto :SEM_ENV
-if "%~1"=="" goto :AJUDA
 
+REM Sem argumentos, main.py decide: roda o dashboard do settings.local.yaml
+REM se houver um configurado, ou mostra a ajuda se nao houver.
 "%PY%" main.py %*
-exit /b %ERRORLEVEL%
+set "CODIGO=%ERRORLEVEL%"
+if defined PAUSAR pause
+exit /b %CODIGO%
 
 
 :SEM_VENV
@@ -58,27 +61,3 @@ if defined PAUSAR pause
 exit /b 2
 
 
-:AJUDA
-echo.
-echo   ddcapture - captura widgets e valores de dashboards do Datadog
-echo.
-echo   Comandos mais usados:
-echo.
-echo     ddcapture.bat --validar
-echo         Testa se as chaves do .env funcionam no site configurado.
-echo.
-echo     ddcapture.bat --buscar TEXTO
-echo         Lista os dashboards com TEXTO no titulo, com o ID de cada um.
-echo.
-echo     ddcapture.bat --dashboard-id ID --dry-run
-echo         Inventario de widgets e queries. NAO consulta dados nem grava
-echo         arquivos - use para conferir antes de gastar rate limit.
-echo.
-echo     ddcapture.bat --dashboard-id ID --from -1h
-echo         Captura os valores e grava JSON, CSV, XLSX e SQLite em out\.
-echo.
-echo   Janelas: -15m, -1h, -7d, now ou epoch.
-echo   Lista completa de opcoes: ddcapture.bat --help
-echo.
-if defined PAUSAR pause
-exit /b 0
