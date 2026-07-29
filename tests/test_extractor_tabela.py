@@ -82,8 +82,33 @@ def test_group_by_vem_das_linhas(spec):
     q = spec.queries[0]
     facets = [g["facet"] for g in q["group_by"]]
     assert facets == ["@channel", "@org"]
-    # O limite vem de rows.sort.limit, nao de um padrao arbitrario.
-    assert all(g["limit"] == 500 for g in q["group_by"])
+
+
+def test_limite_e_reduzido_com_varios_group_by(spec):
+    """rows.sort.limit e o teto de LINHAS DA TABELA, nao por facet.
+
+    Repassar 500 por facet com dois agrupamentos faz a API responder
+    'Invalid query input'. Medido: 200 falha, 100 passa.
+    """
+    assert all(g["limit"] == 100 for g in spec.queries[0]["group_by"])
+
+
+def test_limite_e_preservado_com_um_unico_group_by():
+    """Com um agrupamento so, 500 e aceito e trunca menos."""
+    widget = _widget_tabela()
+    rows = widget.definition["requests"][0]["rows"]
+    rows["group_by"] = rows["group_by"][:1]
+
+    spec = extrair(widget, {}, "avg")[0]
+    assert spec.queries[0]["group_by"] == [{"facet": "@channel", "limit": 500}]
+
+
+def test_limite_ausente_cai_para_um_padrao():
+    widget = _widget_tabela()
+    widget.definition["requests"][0]["rows"].pop("sort")
+
+    spec = extrair(widget, {}, "avg")[0]
+    assert all(g["limit"] == 10 for g in spec.queries[0]["group_by"])
 
 
 def test_formula_da_coluna_e_descartada(spec):

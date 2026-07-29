@@ -308,8 +308,13 @@ src/ddcapture/
 - **`query_table`**: guarda `compute` e `group_by` **fora** da query — em
   `columns[].compute` e `rows.group_by[]`. Enviar a query como está faz a API responder
   `Error decoding payload`.
-- **`data_source: dataset`**: widgets alimentados por célula de notebook não são
-  alcançáveis por nenhuma API de query. Aparecem como falha, e é esperado.
+- **Limite do `group_by`**: `rows.sort.limit` é o teto de **linhas da tabela**, não por
+  facet. Com dois agrupamentos, repassá-lo direto (500) dá `Invalid query input` —
+  medido: 200 falha, 100 passa. Com um agrupamento só, 500 é aceito.
+- **`data_source: dataset`**: widget alimentado por célula de notebook. A query é
+  identificada por `dataset_id` + `dataset_provider`, e o `compute` é uma **lista**
+  (em logs é um dict). Descartar qualquer um desses campos dá `Invalid query input`.
+  A fórmula referencia o **nome da query**, não o nome do compute.
 - **Falha isolada**: uma query que falha não derruba a execução — vira uma linha com
   valor vazio e a mensagem na coluna `erro`, e o resumo lista o que falhou.
 - **Rate limit**: 429 é tratado respeitando `X-RateLimit-Reset`, com backoff exponencial.
@@ -322,7 +327,7 @@ src/ddcapture/
 .\.venv\Scripts\python.exe -m pytest -q
 ```
 
-143 testes, **sem rede**: achatamento de grupos aninhados, os dois formatos de query,
+152 testes, **sem rede**: achatamento de grupos aninhados, os dois formatos de query,
 `query_table`, substituição de template variables, as quatro camadas de categorização,
 a leitura das respostas de cada API, o guarda somente-leitura, as janelas de tempo e
 todos os formatos de saída — contra `tests/fixtures/dashboard_sample.json`.

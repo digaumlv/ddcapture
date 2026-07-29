@@ -158,9 +158,13 @@ def _normalizar_query(
     if "query" in q:
         saida["query"] = substituir_template_vars(str(q["query"]), valores_vars, prefixos)
 
-    # Consultas de eventos/logs carregam campos proprios em vez de `query`.
+    # Nem toda fonte usa `query`: eventos/logs trazem search/compute/group_by,
+    # e um widget de dataset (celula de notebook) e identificado por
+    # dataset_id + dataset_provider. Descartar qualquer um destes faz a API
+    # responder 'Invalid query input'.
     for chave in ("search", "compute", "group_by", "indexes", "storage",
-                  "compute_query", "event_size"):
+                  "compute_query", "event_size",
+                  "dataset_id", "dataset_provider", "query_filter", "sort"):
         if chave in q:
             saida[chave] = _substituir_recursivo(q[chave], valores_vars, prefixos)
 
@@ -181,6 +185,26 @@ def _substituir_recursivo(
     if isinstance(valor, dict):
         return {k: _substituir_recursivo(v, valores_vars, prefixos) for k, v in valor.items()}
     return valor
+
+
+# Teto por facet numa query escalar agrupada. `rows.sort.limit` do widget e o
+# limite de LINHAS DA TABELA, nao por facet: com dois group_by, repassa-lo
+# direto (500) faz a API responder 'Invalid query input'. Medido: com dois
+# facets, 200 falha e 100 passa; com um facet, 500 passa.
+_LIMITE_MAX_POR_FACET = 100
+
+
+def _limite_por_facet(rows: dict[str, Any]) -> int:
+    limite = ((rows.get("sort") or {}).get("limit")) or 10
+    try:
+        limite = int(limite)
+    except (TypeError, ValueError):
+        return 10
+    # So limita quando ha mais de um agrupamento - com um so, o teto do widget
+    # e aceito e trunca menos.
+    if len(rows.get("group_by") or []) > 1:
+        return min(limite, _LIMITE_MAX_POR_FACET)
+    return limite
 
 
 def _completar_query_de_tabela(
@@ -213,7 +237,7 @@ def _completar_query_de_tabela(
         computes[alvo] = item
 
     rows = req.get("rows") or {}
-    limite = ((rows.get("sort") or {}).get("limit")) or 10
+    limite = _limite_por_facet(rows)
     grupos: dict[str, list[dict[str, Any]]] = {}
     for grupo in rows.get("group_by") or []:
         for chave in (grupo or {}).get("group_keys") or []:
