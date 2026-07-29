@@ -1,0 +1,74 @@
+# Regras da categorizacao automatica.
+#
+# A cascata em categorize.py e:
+#   1. titulo do widget de grupo (estrutura do proprio dashboard)
+#   2. palavras-chave abaixo, contra o titulo do widget
+#   3. namespace da metrica
+#   4. fallback
+#
+# As camadas 2 e 3 sao configuraveis aqui. As regras sao avaliadas em ordem:
+# a primeira que casar vence. O padrao e regex, case-insensitive, sem acento
+# (a comparacao normaliza acentos antes de aplicar).
+
+palavras_chave:
+  - categoria: "Infraestrutura"
+    padrao: "cpu|mem[oó]ria|memory|disco|disk|host|node|container|pod|swap|load"
+  - categoria: "Erros"
+    padrao: "erro|error|falha|fail|5xx|4xx|exception|timeout|refus"
+  - categoria: "Performance"
+    padrao: "lat[eê]ncia|latency|p50|p75|p90|p95|p99|duration|tempo de resposta|response time|apdex"
+  - categoria: "Trafego"
+    padrao: "requisi|request|rps|throughput|tr[aá]fego|traffic|hits|qps"
+  - categoria: "Banco de Dados"
+    padrao: "banco|database|\\bdb\\b|sql|postgres|mysql|oracle|redis|mongo|query time|conex[oõ]es"
+  - categoria: "Filas e Mensageria"
+    padrao: "fila|queue|kafka|rabbit|sqs|topic|lag|consumer"
+  - categoria: "Disponibilidade"
+    padrao: "uptime|disponib|availability|health|slo|sla|synthetic"
+  - categoria: "Custo"
+    padrao: "custo|cost|billing|spend|gasto"
+  - categoria: "Seguranca"
+    padrao: "seguran|security|auth|login|permiss|waf|bloqueio"
+  - categoria: "Negocio"
+    padrao: "venda|pedido|order|convers|receita|revenue|checkout|cadastro|cliente"
+
+# Prefixo do nome da metrica -> categoria. Avaliado do prefixo mais longo
+# para o mais curto, entao "aws.rds" vence "aws".
+namespaces:
+  "system": "Infraestrutura"
+  "process": "Infraestrutura"
+  "container": "Infraestrutura"
+  "kubernetes": "Infraestrutura"
+  "docker": "Infraestrutura"
+  "trace": "APM"
+  "apm": "APM"
+  "aws.rds": "Banco de Dados"
+  "aws.elasticache": "Banco de Dados"
+  "postgresql": "Banco de Dados"
+  "mysql": "Banco de Dados"
+  "oracle": "Banco de Dados"
+  "redis": "Banco de Dados"
+  "mongodb": "Banco de Dados"
+  "aws.sqs": "Filas e Mensageria"
+  "kafka": "Filas e Mensageria"
+  "rabbitmq": "Filas e Mensageria"
+  "aws.elb": "Trafego"
+  "aws.applicationelb": "Trafego"
+  "nginx": "Trafego"
+  "haproxy": "Trafego"
+  "aws.lambda": "Serverless"
+  "azure": "Cloud"
+  "gcp": "Cloud"
+  "aws": "Cloud"
+  "datadog": "Observabilidade"
+  "synthetics": "Disponibilidade"
+  "logs": "Logs"
+
+# Categoria usada quando nenhuma camada resolve.
+fallback: "sem-categoria"
+
+# Chaves de tag promovidas a coluna propria na saida.
+tags_dimensao:
+  - env
+  - service
+  - team

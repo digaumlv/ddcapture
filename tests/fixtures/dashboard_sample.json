@@ -1,0 +1,194 @@
+{
+  "id": "abc-def-ghi",
+  "title": "Exemplo | Visao Geral",
+  "layout_type": "ordered",
+  "template_variables": [
+    { "name": "env", "prefix": "env", "default": "prod" },
+    { "name": "service", "prefix": "service", "default": "*" },
+    { "name": "regiao", "prefix": "region", "default": ["sa-east-1"] }
+  ],
+  "widgets": [
+    {
+      "id": 1000,
+      "definition": {
+        "type": "group",
+        "title": "Infraestrutura AWS",
+        "layout_type": "ordered",
+        "widgets": [
+          {
+            "id": 1001,
+            "definition": {
+              "type": "timeseries",
+              "title": "CPU por host",
+              "requests": [
+                {
+                  "queries": [
+                    {
+                      "name": "cpu",
+                      "data_source": "metrics",
+                      "query": "avg:system.cpu.user{env:$env} by {host}"
+                    }
+                  ],
+                  "formulas": [{ "formula": "cpu", "alias": "CPU %" }],
+                  "response_format": "timeseries",
+                  "style": { "palette": "dog_classic" }
+                }
+              ]
+            }
+          },
+          {
+            "id": 1002,
+            "definition": {
+              "type": "query_value",
+              "title": "Memoria livre",
+              "precision": 2,
+              "requests": [
+                {
+                  "queries": [
+                    {
+                      "name": "mem",
+                      "data_source": "metrics",
+                      "query": "avg:system.mem.free{env:$env,service:$service}"
+                    }
+                  ],
+                  "formulas": [{ "formula": "mem" }],
+                  "response_format": "scalar"
+                }
+              ]
+            }
+          },
+          {
+            "id": 1003,
+            "definition": {
+              "type": "group",
+              "title": "RDS",
+              "layout_type": "ordered",
+              "widgets": [
+                {
+                  "id": 1004,
+                  "definition": {
+                    "type": "query_value",
+                    "title": "Conexoes RDS",
+                    "requests": [
+                      {
+                        "q": "avg:aws.rds.database_connections{env:$env}",
+                        "aggregator": "last"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "id": 2000,
+      "definition": {
+        "type": "note",
+        "content": "Atualizado pelo time de plataforma.",
+        "background_color": "yellow"
+      }
+    },
+    {
+      "id": 2001,
+      "definition": {
+        "type": "toplist",
+        "title": "Erros 5xx por servico",
+        "requests": [
+          {
+            "queries": [
+              {
+                "name": "erros",
+                "data_source": "metrics",
+                "query": "sum:trace.http.request.errors{env:$env} by {service}",
+                "aggregator": "sum"
+              }
+            ],
+            "formulas": [{ "formula": "erros", "alias": "Erros 5xx" }],
+            "response_format": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2002,
+      "definition": {
+        "type": "timeseries",
+        "title": "",
+        "requests": [
+          {
+            "queries": [
+              {
+                "name": "req",
+                "data_source": "metrics",
+                "query": "avg:trace.servlet.request.duration{env:$env}"
+              }
+            ],
+            "response_format": "timeseries"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2003,
+      "definition": {
+        "type": "query_value",
+        "title": "Painel XPTO",
+        "requests": [
+          {
+            "queries": [
+              {
+                "name": "xpto",
+                "data_source": "metrics",
+                "query": "avg:custom.negocio.indicador{*}"
+              }
+            ],
+            "response_format": "scalar"
+          }
+        ]
+      }
+    },
+    {
+      "id": 2004,
+      "definition": {
+        "type": "slo",
+        "title": "SLO de checkout",
+        "slo_id": "slo123abc",
+        "time_windows": ["7d", "30d"],
+        "view_type": "detail"
+      }
+    },
+    {
+      "id": 2005,
+      "definition": {
+        "type": "manage_status",
+        "title": "Monitores da plataforma",
+        "query": "tag:team-plataforma",
+        "summary_type": "monitors"
+      }
+    },
+    {
+      "id": 2006,
+      "definition": {
+        "type": "timeseries",
+        "title": "Volume de logs de erro",
+        "requests": [
+          {
+            "queries": [
+              {
+                "name": "logs_erro",
+                "data_source": "logs",
+                "search": { "query": "status:error env:$env" },
+                "compute": { "aggregation": "count" },
+                "group_by": [{ "facet": "service", "limit": 5 }]
+              }
+            ],
+            "response_format": "timeseries"
+          }
+        ]
+      }
+    }
+  ]
+}

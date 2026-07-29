@@ -1,0 +1,52 @@
+# Configuracao do coletor. Credenciais NAO ficam aqui - use .env.
+
+# ID do dashboard padrao (o formato e abc-def-ghi, visivel na URL do dashboard).
+# Pode ser sobrescrito com --dashboard-id.
+dashboard_id: ""
+
+# Janela de tempo padrao. Sobrescrevivel com --from / --to.
+#
+# Aceita:
+#   relativo   -15m, -1h, -7d  (o '-' e opcional)
+#   data BR    01/07, 01/07/2026, "01/07/2026 08:30"   <- dia/mes, nao mes/dia
+#   data ISO   2026-07-01
+#   agora      now
+#   epoch      em segundos ou milissegundos
+#
+# Datas sao lidas no fuso local. Uma data sem hora em `to` cobre o dia INTEIRO
+# (23:59:59), entao 01/07 a 31/07 inclui o dia 31 completo.
+janela:
+  from: "01/07"
+  to: "31/07"
+
+# Agregador padrao aplicado as queries escalares quando o widget nao define um.
+# Um de: avg, sum, min, max, last, percentile
+agregador_padrao: avg
+
+# Diretorio de saida.
+saida_dir: "out"
+
+# Quais sinks gravam resultado.
+sinks:
+  # xlsx: UM arquivo, uma aba por categoria, colunas Campo | Valor.
+  # E a saida principal - enxuta, so nome do campo e valor.
+  xlsx: true
+
+  # Os demais ficam desligados. Ligue quando precisar:
+  #   json  - hierarquico, com query/fonte/tags de cada valor (para auditar)
+  #   csv   - uma linha por valor, com todas as colunas de metadado
+  #   xlsx_por_widget - um arquivo POR WIDGET (centenas, num dashboard grande)
+  #   sqlite - acumula um snapshot por execucao, para comparar no tempo
+  json: false
+  csv: false
+  xlsx_por_widget: false
+  sqlite: false
+
+# Nome do arquivo SQLite (dentro de saida_dir). Acumula um snapshot por execucao.
+sqlite_arquivo: "capturas.sqlite"
+
+# Comportamento de rede.
+http:
+  timeout_s: 30
+  max_tentativas: 5
+  backoff_base_s: 1.0
