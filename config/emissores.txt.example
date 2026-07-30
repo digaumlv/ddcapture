@@ -1,0 +1,20 @@
+# Emissores capturados por capturar_emissores.bat e analise_custos.py.
+#
+#     copy config\emissores.txt.example config\emissores.txt
+#
+# O emissores.txt e ignorado pelo git: e onde ficam os codigos e nomes reais
+# da sua carteira, sem virar commit num repositorio publico.
+#
+# Um por linha, no formato:
+#     codigo=Nome
+# ou so o codigo, se o nome nao importar:
+#     codigo
+#
+# Linhas vazias e as iniciadas por # sao ignoradas.
+#
+# O codigo e usado no filtro @org. Se a origem gravar o mesmo emissor com e
+# sem zero a esquerda, o coletor consulta as duas formas automaticamente:
+# '1234' vira '@org:(1234 OR 234)'.
+
+1234=Emissor Exemplo A
+5678=Emissor Exemplo B

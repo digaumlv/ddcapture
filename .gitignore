@@ -1,8 +1,9 @@
 .env
 
-# Override local do settings.yaml: e onde vai o dashboard_id real, que nao
+# Configuracao local: dashboard_id, codigos e nomes de emissores. Nada disso
 # deve ir para um repositorio publico.
 config/settings.local.yaml
+config/emissores.txt
 
 __pycache__/
 *.py[cod]
@@ -12,4 +13,13 @@ venv/
 out/
 *.sqlite
 *.sqlite3
+
+# Material de trabalho local: planilhas, tabelas e imagens colocadas na pasta.
+# O repositorio e publico - nada disso deve ser versionado por acidente.
 *.xlsx
+*.xls
+*.csv
+*.jpg
+*.jpeg
+*.png
+*.pdf

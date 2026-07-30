@@ -10,7 +10,11 @@ from typing import Any
 from .categorize import Categorizador, mesclar_tags
 from .client import DatadogClient
 from .config import Config
-from .dashboard import achatar_widgets, valores_template_vars
+from .dashboard import (
+    achatar_widgets,
+    prefixos_template_vars,
+    valores_template_vars,
+)
 from .extractor import DATA_SOURCES_EVENTOS, DATA_SOURCES_METRICAS, extrair
 from .models import Measurement, QuerySpec, Widget
 from .resolvers import ValorBruto
@@ -31,6 +35,13 @@ class Resultado:
     widgets: list[Widget] = field(default_factory=list)
     specs: list[QuerySpec] = field(default_factory=list)
     medicoes: list[Measurement] = field(default_factory=list)
+    # Template variables fixadas nesta execucao (--var). Entram no nome dos
+    # arquivos: sem isso, capturas de emissores diferentes viram arquivos
+    # indistinguiveis, so com o timestamp separando.
+    filtros: dict[str, str] = field(default_factory=dict)
+    # Nome curto para o arquivo (--rotulo). Substitui os filtros no nome quando
+    # o valor do filtro nao serve, como '(1234 OR 234)'.
+    rotulo: str = ""
 
     @property
     def falhas(self) -> list[Measurement]:
@@ -65,10 +76,16 @@ def preparar(
     """
     widgets = achatar_widgets(dashboard)
     valores_vars = valores_template_vars(dashboard, overrides_vars)
+    # Sem os prefixos, '--var codigoEmissor=1234' vira o token solto '1234' na
+    # query - busca de texto livre em vez do filtro '@org:1234'. A query nao
+    # falha, so devolve o numero errado.
+    prefixos = prefixos_template_vars(dashboard)
 
     specs: list[QuerySpec] = []
     for widget in widgets:
-        specs.extend(extrair(widget, valores_vars, config.agregador_padrao))
+        specs.extend(
+            extrair(widget, valores_vars, config.agregador_padrao, prefixos)
+        )
 
     return Resultado(
         dashboard_id=str(dashboard.get("id") or config.dashboard_id),
@@ -77,6 +94,7 @@ def preparar(
         fim_s=fim_s,
         widgets=widgets,
         specs=specs,
+        filtros=dict(overrides_vars or {}),
     )
 
 

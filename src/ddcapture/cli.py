@@ -83,6 +83,12 @@ def montar_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Testa as credenciais do .env contra a API e sai.",
     )
+    p.add_argument(
+        "--rotulo",
+        metavar="TEXTO",
+        help="Nome curto no arquivo de saida. Use quando o valor do --var nao "
+             "servir de nome, ex.: --var \"codigoEmissor=(1234 OR 234)\" --rotulo 1234",
+    )
     p.add_argument("--saida", type=Path, help="Diretorio de saida (padrao: settings.yaml)")
     p.add_argument("-v", "--verbose", action="store_true", help="Log detalhado")
     return p
@@ -195,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
 
     config.dashboard_id = dashboard_id or str(dashboard.get("id") or "")
     resultado = preparar(dashboard, config, inicio_s, fim_s, _overrides(args.var))
+    resultado.rotulo = args.rotulo or ""
 
     if args.dry_run:
         _imprimir_dry_run(resultado, config, dashboard, args.var)
