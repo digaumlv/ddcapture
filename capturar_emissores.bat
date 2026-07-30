@@ -16,7 +16,11 @@ REM ---------------------------------------------------------------------
 
 chcp 65001 >nul 2>&1
 set "PYTHONIOENCODING=utf-8"
-cd /d "%~dp0"
+
+REM A raiz precisa ser guardada ANTES do shift do parsing: o shift desloca
+REM tambem o %0, e a partir dai %~dp0 nao aponta mais para este script.
+set "RAIZ=%~dp0"
+cd /d "%RAIZ%"
 
 REM Emissores vem de config\emissores.txt (ignorado pelo git). Copie o
 REM .example e ajuste conforme a sua carteira.
@@ -26,7 +30,7 @@ REM com zero a esquerda ('1234') e sem ('234') - em etapas diferentes do
 REM funil. Filtrar so por uma delas pega parte dos eventos e perde o resto,
 REM sem nenhum erro aparecer. Por isso cada emissor e consultado como
 REM '(1234 OR 234)'.
-set "ARQUIVO=%~dp0config\emissores.txt"
+set "ARQUIVO=%RAIZ%config\emissores.txt"
 set "PADRAO="
 if exist "%ARQUIVO%" (
     for /f "usebackq eol=# tokens=1 delims==" %%L in ("%ARQUIVO%") do (
@@ -78,7 +82,7 @@ for %%E in (%EMISSORES%) do (
     echo ------------------------------------------------------------
     echo   Emissor %%E   filtro @org:!ALVO!
     echo ------------------------------------------------------------
-    call "%~dp0ddcapture.bat" --var "codigoEmissor=!ALVO!" --rotulo %%E!EXTRA!
+    call "%RAIZ%ddcapture.bat" --var "codigoEmissor=!ALVO!" --rotulo %%E!EXTRA!
     if errorlevel 1 (
         echo   [FALHOU] emissor %%E
         set /a FALHAS+=1
