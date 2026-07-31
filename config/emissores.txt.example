@@ -1,4 +1,4 @@
-# Emissores capturados por capturar_emissores.bat e analise_custos.py.
+# Emissores capturados por 3_capturar_emissores.bat e analise_custos.py.
 #
 #     copy config\emissores.txt.example config\emissores.txt
 #

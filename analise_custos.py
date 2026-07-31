@@ -92,6 +92,51 @@ def capturas_por_emissor() -> dict[str, Path]:
     return encontrados
 
 
+def _diagnostico_sem_captura() -> str:
+    """Explica POR QUE nao ha captura utilizavel, olhando o que existe em out/.
+
+    'Rode a captura' e resposta errada quando a captura rodou: o caso comum e
+    o sink json estar desligado, e ai out/ tem xlsx mas nenhum json - e so o
+    json carrega a query de cada valor, que a analise precisa.
+    """
+    pasta = RAIZ / "out"
+    if not pasta.exists():
+        return (
+            f"A pasta {pasta.name}/ nao existe.\n"
+            "Rode antes: 3_capturar_emissores.bat"
+        )
+
+    arquivos = sorted(p.name for p in pasta.iterdir() if p.is_file())
+    if not arquivos:
+        return (
+            f"A pasta {pasta.name}/ esta vazia.\n"
+            "Rode antes: 3_capturar_emissores.bat"
+        )
+
+    jsons = [n for n in arquivos if n.lower().endswith(".json")]
+    if not jsons:
+        outros = ", ".join(sorted({Path(n).suffix or "?" for n in arquivos}))
+        return (
+            f"Existem {len(arquivos)} arquivo(s) em {pasta.name}/ ({outros}), "
+            "mas nenhum .json.\n\n"
+            "A analise precisa do sink json: so ele carrega a query de cada\n"
+            "valor, que e o que permite saber canal e etapa. O xlsx tem\n"
+            "apenas Campo e Valor.\n\n"
+            "Ligue em config/settings.yaml (ou settings.local.yaml):\n"
+            "    sinks:\n"
+            "      json: true\n\n"
+            "e rode a captura de novo: 3_capturar_emissores.bat"
+        )
+
+    return (
+        f"Ha {len(jsons)} json em {pasta.name}/, mas nenhum com codigo de\n"
+        f"emissor no nome: {', '.join(jsons[:3])}\n\n"
+        "A analise so usa capturas por emissor - uma captura geral misturaria\n"
+        "os emissores. Rode: 3_capturar_emissores.bat\n"
+        "(o ddcapture.bat sozinho gera captura sem codigo no nome)"
+    )
+
+
 def classificar(query: str) -> tuple[str | None, str]:
     """Devolve (canal, etapa) a partir da query do widget.
 
@@ -585,10 +630,7 @@ def main() -> int:
 
     capturas = capturas_por_emissor()
     if not capturas:
-        raise SystemExit(
-            "Nenhuma captura por emissor em out/.\n"
-            "Rode antes: capturar_emissores.bat"
-        )
+        raise SystemExit(_diagnostico_sem_captura())
 
     conexao = sqlite3.connect(BANCO)
     try:

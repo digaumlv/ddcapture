@@ -5,9 +5,9 @@ REM ---------------------------------------------------------------------
 REM  Captura o dashboard uma vez POR EMISSOR, gerando uma planilha para
 REM  cada um em vez de tudo misturado.
 REM
-REM      capturar_emissores.bat                      usa a lista abaixo
-REM      capturar_emissores.bat 1234 5678            usa os codigos passados
-REM      capturar_emissores.bat 1234 --from 01/06     (a partir do 2o arg,
+REM      3_capturar_emissores.bat                      usa a lista abaixo
+REM      3_capturar_emissores.bat 1234 5678            usa os codigos passados
+REM      3_capturar_emissores.bat 1234 --from 01/06     (a partir do 2o arg,
 REM                                                    tudo vai para o coletor)
 REM
 REM  Cada execucao filtra por @org via a template variable codigoEmissor,
@@ -109,6 +109,6 @@ echo   Crie a lista uma vez:
 echo       copy config\emissores.txt.example config\emissores.txt
 echo.
 echo   e preencha com os codigos da sua carteira. Ou passe direto:
-echo       capturar_emissores.bat 1234 5678
+echo       3_capturar_emissores.bat 1234 5678
 echo.
 exit /b 2

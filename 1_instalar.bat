@@ -4,8 +4,8 @@ setlocal EnableExtensions
 REM ---------------------------------------------------------------------
 REM  Prepara o ambiente do ddcapture do zero.
 REM
-REM      instalar.bat              instala (reaproveita o .venv se ja existir)
-REM      instalar.bat --recriar    apaga o .venv e refaz do zero
+REM      1_instalar.bat              instala (reaproveita o .venv se ja existir)
+REM      1_instalar.bat --recriar    apaga o .venv e refaz do zero
 REM
 REM  Idempotente: rodar de novo nao estraga nada e nunca sobrescreve o .env.
 REM ---------------------------------------------------------------------

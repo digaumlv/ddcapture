@@ -40,12 +40,16 @@ sinks:
   # E a saida principal - enxuta, so nome do campo e valor.
   xlsx: true
 
+  # json: OBRIGATORIO para o analise_custos.py. So o JSON carrega a query de
+  # cada valor, que e o que permite saber canal e etapa do funil - o xlsx tem
+  # apenas Campo e Valor. Com este sink desligado a analise nao acha nada em
+  # out/ mesmo tendo havido captura.
+  json: true
+
   # Os demais ficam desligados. Ligue quando precisar:
-  #   json  - hierarquico, com query/fonte/tags de cada valor (para auditar)
   #   csv   - uma linha por valor, com todas as colunas de metadado
   #   xlsx_por_widget - um arquivo POR WIDGET (centenas, num dashboard grande)
   #   sqlite - acumula um snapshot por execucao, para comparar no tempo
-  json: false
   csv: false
   xlsx_por_widget: false
   sqlite: false

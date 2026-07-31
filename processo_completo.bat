@@ -79,7 +79,7 @@ echo.
 REM --- 2/3  Captura -----------------------------------------------------
 echo [2/3] Capturando o dashboard por emissor...
 echo       ^(alguns minutos: sao ~145 queries por emissor^)
-call "%RAIZ%capturar_emissores.bat"!EXTRA!
+call "%RAIZ%3_capturar_emissores.bat"!EXTRA!
 if errorlevel 1 goto :ERRO_CAPTURA
 
 REM --- 3/3  Analise -----------------------------------------------------
@@ -100,7 +100,7 @@ goto :FIM_OK
 
 :SEM_VENV
 echo   [ERRO] Ambiente virtual nao encontrado.
-echo   Rode primeiro: instalar.bat
+echo   Rode primeiro: 1_instalar.bat
 goto :FIM_ERRO
 
 :SEM_ENV

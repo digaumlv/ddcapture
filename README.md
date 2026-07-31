@@ -15,11 +15,11 @@ no código, não só na intenção.
 
 ## Instalação
 
-Duplo clique em `instalar.bat`, ou pelo terminal:
+Duplo clique em `1_instalar.bat`, ou pelo terminal:
 
 ```bat
-instalar.bat              :: instala (reaproveita o .venv se já existir)
-instalar.bat --recriar    :: apaga o .venv e refaz do zero
+1_instalar.bat              :: instala (reaproveita o .venv se já existir)
+1_instalar.bat --recriar    :: apaga o .venv e refaz do zero
 ```
 
 Em 5 passos: acha o Python, cria o `.venv`, instala as dependências, prepara o `.env`
@@ -277,7 +277,7 @@ distingue.
 ## Estrutura
 
 ```
-instalar.bat      prepara o ambiente do zero (5 passos, idempotente)
+1_instalar.bat      prepara o ambiente do zero (5 passos, idempotente)
 ddcapture.bat     roda o coletor usando o Python do .venv
 main.py           ponto de entrada; põe src/ no path
 

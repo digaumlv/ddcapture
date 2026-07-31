@@ -4,9 +4,9 @@ setlocal EnableExtensions EnableDelayedExpansion
 REM ---------------------------------------------------------------------
 REM  Apaga o que o processo gera, preservando o que e fonte.
 REM
-REM      limpar_saidas.bat            mostra o que sera apagado e confirma
-REM      limpar_saidas.bat --sim      apaga sem perguntar (para scripts)
-REM      limpar_saidas.bat --tudo     inclui o precos.sqlite
+REM      2_limpar_saidas.bat            mostra o que sera apagado e confirma
+REM      2_limpar_saidas.bat --sim      apaga sem perguntar (para scripts)
+REM      2_limpar_saidas.bat --tudo     inclui o precos.sqlite
 REM
 REM  APAGA:
 REM      out\*                     capturas (JSON, XLSX, CSV, SQLite)
