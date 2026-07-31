@@ -22,6 +22,7 @@ import json
 import re
 import sqlite3
 import sys
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
@@ -134,6 +135,52 @@ def total_eventos(medicoes: list[dict]) -> tuple[float, str]:
     return 0.0, "(nao encontrado)"
 
 
+# O widget que lista os canais em uso no periodo. E um group_by: canal sem
+# nenhum evento simplesmente nao aparece como grupo.
+_WIDGET_CANAIS = re.compile(r"quantidade\s+por\s+canais", re.I)
+
+
+def _normalizar_canal(texto: str) -> str:
+    """'WhatsApp', 'Whatsapp', 'whats app' -> 'whatsapp'."""
+    return re.sub(r"[^a-z0-9]", "", unicodedata.normalize("NFKD", texto)
+                  .encode("ascii", "ignore").decode().lower())
+
+
+def canais_com_uso(medicoes: list[dict]) -> dict[str, float]:
+    """Canais que aparecem em 'Quantidade Por Canais' com volume > 0.
+
+    E o que decide se o piso fixo do canal e devido: canal sem uso no periodo
+    nao gera cobranca. Somamos as linhas do mesmo canal antes de comparar com
+    zero, porque o widget quebra o canal em mais de uma linha.
+    """
+    somas: dict[str, float] = defaultdict(float)
+    rotulos: dict[str, str] = {}
+
+    for m in medicoes:
+        if not _WIDGET_CANAIS.search(m.get("widget_titulo") or ""):
+            continue
+        canal, _ = classificar(m.get("query") or "")
+        if not canal:
+            # O canal tambem vem no nome: 'Quantidade Por Canais - WhatsApp'.
+            # Quando a quebra e por group_by, o sufixo vem como facet cru
+            # ('@log.messageChannel:WhatsApp') - so o valor apos o ':' serve.
+            partes = (m.get("nome_valor") or "").rsplit(" - ", 1)
+            canal = partes[1] if len(partes) == 2 else ""
+            canal = canal.rsplit(":", 1)[-1]
+        canal = canal.split("/")[0].strip()
+        if not canal or canal.startswith("("):
+            continue
+        chave = _normalizar_canal(canal)
+        if not chave:
+            continue
+        rotulos.setdefault(chave, canal)
+        valor = m.get("valor")
+        if isinstance(valor, (int, float)):
+            somas[chave] += valor
+
+    return {rotulos[k]: v for k, v in somas.items() if v > 0}
+
+
 def _cabecalho(ws, colunas: list[str]) -> None:
     ws.append(colunas)
     for c in ws[ws.max_row]:
@@ -147,23 +194,43 @@ def _larguras(ws, larguras: list[int]) -> None:
         ws.column_dimensions[get_column_letter(i)].width = w
 
 
-def aba_fixo(wb: Workbook, conexao: sqlite3.Connection) -> float:
-    """Tudo que e cobrado por valor fixo, independente de volume."""
+def aba_fixo(
+    wb: Workbook,
+    conexao: sqlite3.Connection,
+    ativos: dict[str, float],
+) -> float:
+    """Tudo que e cobrado por valor fixo, independente de volume.
+
+    O piso de um canal so e devido se o canal TEVE USO no periodo. Canal sem
+    nenhum evento nao gera cobranca - por isso `ativos`, vindo do widget de
+    quantidade por canais.
+    """
     ws = wb.create_sheet("Tarifa Fixa")
 
-    ws.append(["Itens de tarifa FIXA - valor nao varia com o volume"])
+    ws.append(["Itens de tarifa FIXA - cobrados so quando o canal teve uso"])
     ws["A1"].font = _FONT_ROTULO
     ws.append([])
 
-    _cabecalho(ws, ["Origem", "Item", "Tarifa Inicial (R$)", "Tarifa Final (R$)"])
+    _cabecalho(ws, [
+        "Origem", "Item", "Volume no periodo", "Cobrado?", "Tarifa (R$)", "Valor (R$)",
+    ])
+
+    ativos_norm = {_normalizar_canal(c): v for c, v in ativos.items()}
 
     total = 0.0
     for canal, tarifa_ini, tarifa_fim in conexao.execute(
         "SELECT canal, tarifa_inicial, tarifa_final FROM piso_canais"
         " WHERE lower(tipo_tarifa)='fixa' ORDER BY tarifa_final DESC"
     ):
-        ws.append(["Piso por canal", canal, tarifa_ini, tarifa_fim])
-        total += tarifa_fim or 0
+        volume = ativos_norm.get(_normalizar_canal(canal))
+        if volume:
+            total += tarifa_fim or 0
+            ws.append(["Piso por canal", canal, volume, "SIM", tarifa_fim, tarifa_fim])
+        else:
+            ws.append([
+                "Piso por canal", canal, 0,
+                "nao - sem uso no periodo", tarifa_fim, None,
+            ])
 
     for f_ini, f_fim, t_fin, t_nfin in conexao.execute(
         "SELECT faixa_inicial, faixa_final,"
@@ -173,28 +240,28 @@ def aba_fixo(wb: Workbook, conexao: sqlite3.Connection) -> float:
         faixa = f"ate {f_fim:,.0f} eventos".replace(",", ".")
 
         # Dentro da franquia, o fixo devido e o de eventos NAO financeiros.
-        ws.append(["Faixa SIC - ev. nao financeiros", faixa, t_nfin, t_nfin])
+        ws.append([
+            "Faixa SIC - ev. nao financeiros", faixa, None, "SIM", t_nfin, t_nfin,
+        ])
         total += t_nfin or 0
 
         # NAO entra no total: a cobranca de eventos financeiros aparece apenas
         # no excedente, por multiplicacao - ver a aba 'Custo variavel'.
         ws.append([
-            "Faixa SIC - ev. financeiros",
-            f"{faixa}  (NAO somado - so acima da franquia)",
-            t_fin,
-            None,
+            "Faixa SIC - ev. financeiros", faixa, None,
+            "nao - so acima da franquia", t_fin, None,
         ])
 
     ws.append([])
-    ws.append(["", "TOTAL FIXO (tarifa final)", "", total])
+    ws.append(["", "TOTAL FIXO", "", "", "", total])
     for c in ws[ws.max_row]:
         c.font = _FONT_ROTULO
 
     ws.append([])
     ws.append([
-        "Nota: soma dos itens de tarifa fixa das duas tabelas. A faixa SIC ate "
-        "250.000 eventos e cobrada de forma fixa; acima disso a cobranca passa "
-        "a ser variavel por evento."
+        "O piso de um canal so entra no total quando o canal teve uso no "
+        "periodo. A coluna 'Volume no periodo' vem do widget 'Quantidade Por "
+        "Canais' - canal que nao aparece la nao gera cobranca."
     ])
     ws.cell(row=ws.max_row, column=1).fill = _FILL_NOTA
     ws.append([
@@ -204,7 +271,7 @@ def aba_fixo(wb: Workbook, conexao: sqlite3.Connection) -> float:
     ])
     ws.cell(row=ws.max_row, column=1).fill = _FILL_NOTA
 
-    _larguras(ws, [32, 40, 20, 20])
+    _larguras(ws, [32, 30, 18, 26, 16, 16])
     return total
 
 
@@ -295,27 +362,28 @@ def aba_custo(
     enviados: dict[str, float],
     eventos_sic: float,
 ) -> float:
-    """Excedente sobre a franquia x tarifa variavel.
+    """Quantidade do canal x tarifa da faixa em que o volume caiu.
 
-    A tarifa fixa e um PISO: ja cobre volume ate `valor_final`. So o que passa
-    disso e cobrado por evento. Aplicar a tarifa sobre o volume inteiro cobra
-    duas vezes o que a franquia ja pagou.
+    'Tarifa Inicial' e 'Tarifa Final' nao sao desconto negociado: sao a tarifa
+    ANTES e DEPOIS do limite em 'Valor final' (1.000.000). Ao ultrapassar o
+    limite, a tarifa menor passa a valer para a quantidade INTEIRA, nao so
+    para o excedente - por isso a coluna 'Tarifa aplicada'.
     """
     ws = wb.create_sheet("Custo variavel")
 
-    ws.append([f"Excedente sobre a franquia - status considerado: {STATUS_FATURAVEL}"])
+    ws.append([f"Custo por canal - status considerado: {STATUS_FATURAVEL}"])
     ws["A1"].font = _FONT_ROTULO
     ws.append([])
 
     _cabecalho(ws, [
-        "Canal (captura)", "Canal (tabela de preco)", "Volume",
-        "Franquia (Valor final)", "Excedente", "Tarifa Final (R$)", "Custo (R$)",
+        "Canal (captura)", "Canal (tabela de preco)", "Quantidade",
+        "Limite (Valor final)", "Faixa", "Tarifa aplicada (R$)", "Custo (R$)",
     ])
 
     precos = {
-        canal.lower(): (canal, valor_final, tarifa)
-        for canal, valor_final, tarifa in conexao.execute(
-            "SELECT canal, valor_final, tarifa_final FROM piso_canais"
+        canal.lower(): (canal, valor_final, tarifa_ini, tarifa_fim)
+        for canal, valor_final, tarifa_ini, tarifa_fim in conexao.execute(
+            "SELECT canal, valor_final, tarifa_inicial, tarifa_final FROM piso_canais"
             " WHERE lower(tipo_tarifa) LIKE 'vari%'"
         )
     }
@@ -337,22 +405,28 @@ def aba_custo(
         elif "whatsapp" in alvo:
             chave = "whatsapp freeform"
         else:
-            return None, None, None
-        return precos.get(chave) or (None, None, None)
+            return None, None, None, None
+        return precos.get(chave) or (None, None, None, None)
 
     total = 0.0
     for canal, volume in sorted(enviados.items(), key=lambda kv: -kv[1]):
-        nome_preco, franquia, tarifa = casar(canal)
-        if franquia is None:
+        nome_preco, limite, tarifa_ini, tarifa_fim = casar(canal)
+        if limite is None:
             ws.append([canal, "(sem correspondencia)", volume, None, None, None, None])
             continue
-        excedente = max(0.0, volume - franquia)
-        custo = excedente * (tarifa or 0)
+
+        # Passar do limite troca a tarifa da quantidade TODA, nao so do
+        # excedente - e um desconto por volume, nao uma faixa progressiva.
+        acima = volume > limite
+        tarifa = tarifa_fim if acima else tarifa_ini
+        faixa = "acima do limite" if acima else "ate o limite"
+
+        custo = volume * (tarifa or 0)
         total += custo
-        ws.append([canal, nome_preco, volume, franquia, excedente, tarifa, custo])
+        ws.append([canal, nome_preco, volume, limite, faixa, tarifa, custo])
 
     ws.append([])
-    ws.append(["", "", "", "", "", "TOTAL EXCEDENTE CANAIS", total])
+    ws.append(["", "", "", "", "", "TOTAL CANAIS", total])
     for c in ws[ws.max_row]:
         c.font = _FONT_ROTULO
 
@@ -402,9 +476,9 @@ def aba_custo(
 
     ws.append([])
     ws.append([
-        "A tarifa fixa e um PISO: ja cobre o volume ate a franquia. So o "
-        "excedente e cobrado por evento. Com excedente zero, o custo variavel "
-        "e zero - paga-se apenas o fixo."
+        "Canais: a quantidade INTEIRA e multiplicada pela tarifa da faixa em "
+        "que o volume caiu. Ate 1.000.000 vale a Tarifa Inicial; acima disso a "
+        "Tarifa Final passa a valer para tudo, nao so para o excedente."
     ])
     ws.cell(row=ws.max_row, column=1).fill = _FILL_NOTA
     ws.append([
@@ -447,7 +521,8 @@ def analisar(codigo: str, arquivo: Path, conexao: sqlite3.Connection) -> dict:
     wb.remove(wb.active)
 
     eventos, origem = total_eventos(medicoes)
-    total_fixo = aba_fixo(wb, conexao)
+    ativos = canais_com_uso(medicoes)
+    total_fixo = aba_fixo(wb, conexao, ativos)
     enviados = aba_uso(wb, medicoes)
     total_variavel = aba_custo(wb, conexao, enviados, eventos)
     aba_detalhe(wb, medicoes)
@@ -463,6 +538,11 @@ def analisar(codigo: str, arquivo: Path, conexao: sqlite3.Connection) -> dict:
         ("Janela", f"{janela['from'][:10]} a {janela['to'][:10]}"),
         ("Eventos no periodo", eventos),
         ("Origem dos eventos", origem),
+        (
+            "Canais com uso",
+            ", ".join(f"{c} ({v:,.0f})" for c, v in sorted(ativos.items()))
+            or "(nenhum)",
+        ),
         ("", ""),
         ("Custo VARIAVEL do emissor", total_variavel),
         ("Tarifa fixa do CONTRATO", total_fixo),
@@ -479,7 +559,15 @@ def analisar(codigo: str, arquivo: Path, conexao: sqlite3.Connection) -> dict:
     _larguras(capa, [30, 52])
 
     saida = RAIZ / f"analise_custos_{codigo}.xlsx"
-    wb.save(saida)
+    try:
+        wb.save(saida)
+    except PermissionError:
+        # O Excel trava o arquivo aberto. Um traceback aqui esconderia a
+        # causa, que tem solucao trivial.
+        raise SystemExit(
+            f"\nNao foi possivel gravar {saida.name}: o arquivo esta aberto.\n"
+            "Feche-o no Excel e rode de novo."
+        ) from None
 
     return {
         "codigo": codigo,

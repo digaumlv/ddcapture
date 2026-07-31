@@ -6,7 +6,7 @@ import os
 import re
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -74,16 +74,23 @@ class Config:
     http_max_tentativas: int
     http_backoff_base_s: float
     categorias: dict[str, Any] = field(default_factory=dict)
+    # "utc" ou "local": em que fuso as DATAS da janela sao lidas.
+    fuso: str = "local"
 
     @property
     def tags_dimensao(self) -> list[str]:
         return list(self.categorias.get("tags_dimensao") or [])
+
+    @property
+    def janela_em_utc(self) -> bool:
+        return str(self.fuso).strip().lower() == "utc"
 
 
 def resolver_instante(
     valor: str,
     agora: int | None = None,
     fim_do_dia: bool = False,
+    utc: bool = False,
 ) -> int:
     """Converte a janela informada em epoch de segundos.
 
@@ -94,8 +101,15 @@ def resolver_instante(
         agora      now
         epoch      1700000000 (s) ou 1700000000000 (ms, como vem da URL do Datadog)
 
-    Datas sao lidas no fuso LOCAL da maquina - quem escreve '01/07' pensa no dia
-    civil daqui, nao em UTC. A conversao para UTC fica com o .timestamp().
+    `utc` decide em que fuso a DATA e lida, e isso desloca a janela inteira:
+
+        utc=False  '01/06' = 01/06 00:00 no fuso da maquina. Em UTC-3 isso e
+                   01/06 03:00 UTC, entao a janela do mes perde as 3 primeiras
+                   horas de junho e ganha as 3 primeiras de julho.
+        utc=True   '01/06' = 01/06 00:00 UTC. O mes fecha exatamente, que e o
+                   que se espera de um fechamento por competencia.
+
+    Instantes relativos ('-1h') e epoch nao dependem do fuso.
 
     `fim_do_dia` muda o horario implicito de uma data SEM hora: 00:00:00 vira
     23:59:59. E o que faz '--from 01/07 --to 31/07' incluir o dia 31 inteiro,
@@ -116,12 +130,16 @@ def resolver_instante(
     if m:
         dia, mes = int(m.group(1)), int(m.group(2))
         ano = _ano_completo(m.group(3), agora)
-        return _epoch_local(ano, mes, dia, m.group(4), m.group(5), m.group(6), fim_do_dia, valor)
+        return _epoch_data(
+            ano, mes, dia, m.group(4), m.group(5), m.group(6), fim_do_dia, valor, utc
+        )
 
     m = _DATA_ISO.match(valor)
     if m:
         ano, mes, dia = int(m.group(1)), int(m.group(2)), int(m.group(3))
-        return _epoch_local(ano, mes, dia, m.group(4), m.group(5), m.group(6), fim_do_dia, valor)
+        return _epoch_data(
+            ano, mes, dia, m.group(4), m.group(5), m.group(6), fim_do_dia, valor, utc
+        )
 
     if valor.lstrip("-").isdigit():
         n = int(valor)
@@ -142,7 +160,7 @@ def _ano_completo(ano: str | None, agora: int) -> int:
     return 2000 + n if n < 100 else n
 
 
-def _epoch_local(
+def _epoch_data(
     ano: int,
     mes: int,
     dia: int,
@@ -151,6 +169,7 @@ def _epoch_local(
     segundo: str | None,
     fim_do_dia: bool,
     original: str,
+    utc: bool = False,
 ) -> int:
     if hora is None and fim_do_dia:
         h, mi, s = 23, 59, 59
@@ -158,8 +177,12 @@ def _epoch_local(
         h, mi, s = int(hora or 0), int(minuto or 0), int(segundo or 0)
 
     try:
-        # Naive de proposito: .timestamp() interpreta no fuso local da maquina.
-        return int(datetime(ano, mes, dia, h, mi, s).timestamp())
+        if utc:
+            momento = datetime(ano, mes, dia, h, mi, s, tzinfo=timezone.utc)
+        else:
+            # Naive de proposito: .timestamp() interpreta no fuso da maquina.
+            momento = datetime(ano, mes, dia, h, mi, s)
+        return int(momento.timestamp())
     except ValueError as exc:
         raise ErroConfig(
             f"Data invalida: {original!r} ({exc}). O formato brasileiro e dia/mes."
@@ -233,6 +256,7 @@ def carregar(
         http_max_tentativas=int(http.get("max_tentativas") or 5),
         http_backoff_base_s=float(http.get("backoff_base_s") or 1.0),
         categorias=categorias,
+        fuso=str(janela.get("fuso") or "local"),
     )
 
 

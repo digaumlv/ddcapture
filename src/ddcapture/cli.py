@@ -6,7 +6,7 @@ import argparse
 import logging
 import re
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from .categorize import Categorizador, normalizar
@@ -183,11 +183,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Erro ao ler {args.arquivo}: {exc}", file=sys.stderr)
         return 1
 
+    utc = config.janela_em_utc
     try:
-        inicio_s = resolver_instante(args.inicio or config.janela_from)
+        inicio_s = resolver_instante(args.inicio or config.janela_from, utc=utc)
         # fim_do_dia: '--to 31/07' sem hora significa o dia 31 inteiro,
         # nao a virada da meia-noite que o deixaria de fora.
-        fim_s = resolver_instante(args.fim or config.janela_to, fim_do_dia=True)
+        fim_s = resolver_instante(
+            args.fim or config.janela_to, fim_do_dia=True, utc=utc
+        )
     except ErroConfig as exc:
         print(f"Janela invalida: {exc}", file=sys.stderr)
         return 2
@@ -197,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     if not args.dry_run:
-        print(f"Janela: {_formatar_janela(inicio_s, fim_s)}\n")
+        print(f"Janela: {_formatar_janela(inicio_s, fim_s, utc)}\n")
 
     config.dashboard_id = dashboard_id or str(dashboard.get("id") or "")
     resultado = preparar(dashboard, config, inicio_s, fim_s, _overrides(args.var))
@@ -257,13 +260,18 @@ def _imprimir_ajuda_curta() -> None:
     )
 
 
-def _formatar_janela(inicio_s: int, fim_s: int) -> str:
-    """Mostra a janela no fuso local - e como o usuario a escreveu."""
+def _formatar_janela(inicio_s: int, fim_s: int, utc: bool = False) -> str:
+    """Mostra a janela no mesmo fuso em que foi interpretada.
+
+    Exibir em local uma janela lida em UTC (ou o contrario) esconde justamente
+    o deslocamento que o fuso causa - que e o erro que se quer poder ver.
+    """
     fmt = "%d/%m/%Y %H:%M:%S"
-    inicio = datetime.fromtimestamp(inicio_s).strftime(fmt)
-    fim = datetime.fromtimestamp(fim_s).strftime(fmt)
+    tz = timezone.utc if utc else None
+    inicio = datetime.fromtimestamp(inicio_s, tz).strftime(fmt)
+    fim = datetime.fromtimestamp(fim_s, tz).strftime(fmt)
     dias = (fim_s - inicio_s) / 86400
-    return f"{inicio}  ate  {fim}   ({dias:.1f} dias)"
+    return f"{inicio}  ate  {fim}  {'UTC' if utc else 'local'}   ({dias:.1f} dias)"
 
 
 def _mascarar(chave: str) -> str:
