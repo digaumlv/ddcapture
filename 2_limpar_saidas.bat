@@ -10,7 +10,7 @@ REM      2_limpar_saidas.bat --tudo     inclui o precos.sqlite
 REM
 REM  APAGA:
 REM      out\*                     capturas (JSON, XLSX, CSV, SQLite)
-REM      analise_custos_*.xlsx     planilhas de analise
+REM      precificacao_*.xlsx     planilhas de precificacao
 REM      precos.sqlite             somente com --tudo
 REM
 REM  NUNCA TOCA:
@@ -43,7 +43,7 @@ if exist "%RAIZ%out" (
     for %%F in ("%RAIZ%out\*") do set /a N_OUT+=1
 )
 set /a N_ANALISE=0
-for %%F in ("%RAIZ%analise_custos_*.xlsx") do set /a N_ANALISE+=1
+for %%F in ("%RAIZ%precificacao_*.xlsx") do set /a N_ANALISE+=1
 
 set /a N_BANCO=0
 if defined INCLUIR_BANCO if exist "%RAIZ%precos.sqlite" set /a N_BANCO=1
@@ -56,7 +56,7 @@ echo   Limpar saidas
 echo ============================================================
 echo.
 echo   out\                    !N_OUT! arquivo^(s^)
-echo   analise_custos_*.xlsx   !N_ANALISE! arquivo^(s^)
+echo   precificacao_*.xlsx   !N_ANALISE! arquivo^(s^)
 if defined INCLUIR_BANCO echo   precos.sqlite           !N_BANCO! arquivo^(s^)
 echo.
 
@@ -82,7 +82,7 @@ goto :CANCELADO
 :APAGAR
 echo.
 if exist "%RAIZ%out" del /q "%RAIZ%out\*" >nul 2>&1
-del /q "%RAIZ%analise_custos_*.xlsx" >nul 2>&1
+del /q "%RAIZ%precificacao_*.xlsx" >nul 2>&1
 if defined INCLUIR_BANCO del /q "%RAIZ%precos.sqlite" >nul 2>&1
 
 REM Confere o resultado em vez de confiar no del.
@@ -90,7 +90,7 @@ set /a RESTOU=0
 if exist "%RAIZ%out" (
     for %%F in ("%RAIZ%out\*") do set /a RESTOU+=1
 )
-for %%F in ("%RAIZ%analise_custos_*.xlsx") do set /a RESTOU+=1
+for %%F in ("%RAIZ%precificacao_*.xlsx") do set /a RESTOU+=1
 
 if !RESTOU! GTR 0 (
     echo   [ATENCAO] !RESTOU! arquivo^(s^) nao foram apagados.
